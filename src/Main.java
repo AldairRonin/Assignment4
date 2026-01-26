@@ -1,3 +1,5 @@
+import exception.InvalidInputException;
+import exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.Scanner;
 import model.Media;
@@ -8,101 +10,147 @@ public class Main {
 
     public static void main(String[] args) {
 
-        Scanner scanner = new Scanner(System.in);
+        try {
 
-        int playlistId = 2; // выбери нужный плейлист для теста
+            Scanner scanner = new Scanner(System.in);
 
-        PlaylistService playlistService = new PlaylistService();
-        MediaService mediaService = new MediaService();
+            int playlistId = 2; // выбери нужный плейлист для теста
 
-        //выбрать плейлист
-        String playlistName = playlistService.getPlaylistNameById(playlistId);
-        if (playlistName == null) {
-            System.out.println("Playlist not found.");
-            return;
-        }
+            PlaylistService playlistService = new PlaylistService();
+            MediaService mediaService = new MediaService();
 
-        System.out.println("PLAYLIST = \"" + playlistName + "\"");
-        printPlaylistMedia(playlistService, playlistId);
+            // проверка существования плейлиста
+            String playlistName = playlistService.getPlaylistNameById(playlistId);
+            if (playlistName == null) {
+                throw new ResourceNotFoundException("Playlist not found.");
+            }
 
-        //меню управления плейлистом
-        System.out.println();
-        System.out.println("(input numbers for managing):");
-        System.out.println("1 - add media");
-        System.out.println("2 - delete media");
-        System.out.println("3 - exit");
+            System.out.println("PLAYLIST = \"" + playlistName + "\"");
+            printPlaylistMedia(playlistService, playlistId);
 
-        System.out.print("Your choice: ");
-        String choice = scanner.nextLine();
-
-        //выход
-        if (choice.equalsIgnoreCase("3") || choice.equalsIgnoreCase("exit")) {
-            System.out.println("Exit. No changes made.");
-            return;
-        }
-
-        // добавить media 
-        if (choice.equals("1")) {
-
+            // меню управления
             System.out.println();
-            System.out.println("AVAILABLE MEDIA:");
+            System.out.println("(input numbers for managing):");
+            System.out.println("1 - add media");
+            System.out.println("2 - delete media");
+            System.out.println("3 - exit");
 
-            List<Media> allMedia = mediaService.getAllMedia();
-            boolean hasAvailable = false;
+            String choice = scanner.nextLine();
 
-            for (Media media : allMedia) {
-                if (!playlistService.isMediaInPlaylist(playlistId, media.getId())) {
-                    System.out.println(
-                            media.getId() + " - \"" +
-                            media.getTitle() + "\" (" +
-                            media.getType() + ", " +
-                            media.getDuration() + " secs)"
-                    );
-                    hasAvailable = true;
+            // проверка выбора
+            if (!choice.equals("1") && !choice.equals("2") && !choice.equals("3")) {
+                throw new InvalidInputException(
+                        "Invalid input. Please enter 1, 2 or 3."
+                );
+            }
+
+            // выход
+            if (choice.equals("3")) {
+                System.out.println("Exit. No changes made.");
+                return;
+            }
+
+            // добавить медиа
+            if (choice.equals("1")) {
+
+                System.out.println();
+                System.out.println("AVAILABLE MEDIA:");
+
+                List<Media> allMedia = mediaService.getAllMedia();
+                boolean hasAvailable = false;
+
+                for (Media media : allMedia) {
+                    if (!playlistService.isMediaInPlaylist(playlistId, media.getId())) {
+                        System.out.println(
+                                media.getId() + " - \"" +
+                                media.getTitle() + "\" (" +
+                                media.getType() + ", " +
+                                media.getDuration() + " secs)"
+                        );
+                        hasAvailable = true;
+                    }
                 }
+
+                if (!hasAvailable) {
+                    System.out.println("No available media to add.");
+                    return;
+                }
+
+                System.out.print("Enter media id to add or type \"exit\": ");
+                String input = scanner.nextLine();
+
+                if (input.equalsIgnoreCase("exit")) {
+                    System.out.println("Exit. No changes made.");
+                    return;
+                }
+
+                int mediaId = parseIdOrThrow(input);
+
+                if (!mediaService.mediaExists(mediaId)) {
+                    throw new ResourceNotFoundException(
+                            "Media with id " + mediaId + " not found."
+                    );
+                }
+
+                if (playlistService.isMediaInPlaylist(playlistId, mediaId)) {
+                    throw new InvalidInputException(
+                            "Media already exists in this playlist."
+                    );
+                }
+
+                playlistService.addMedia(playlistId, mediaId);
+                System.out.println("Media added.");
             }
 
-            if (!hasAvailable) {
-                System.out.println("No available media to add.");
-                return;
+            // удалить медиа
+            if (choice.equals("2")) {
+
+                System.out.print("Enter media id to delete or type \"exit\": ");
+                String input = scanner.nextLine();
+
+                if (input.equalsIgnoreCase("exit")) {
+                    System.out.println("Exit. No changes made.");
+                    return;
+                }
+
+                int mediaId = parseIdOrThrow(input);
+
+                if (!playlistService.isMediaInPlaylist(playlistId, mediaId)) {
+                    throw new ResourceNotFoundException(
+                            "Media with id " + mediaId + " is not in this playlist."
+                    );
+                }
+
+                playlistService.removeMedia(playlistId, mediaId);
+                System.out.println("Media removed.");
             }
 
-            System.out.print("Enter media id to add or type \"exit\": ");
-            String input = scanner.nextLine();
+            // обновлённый плейлист
+            System.out.println();
+            System.out.println("UPDATED PLAYLIST:");
+            printPlaylistMedia(playlistService, playlistId);
 
-            if (input.equalsIgnoreCase("exit")) {
-                System.out.println("Exit. No changes made.");
-                return;
-            }
-
-            int mediaId = Integer.parseInt(input);
-            playlistService.addMedia(playlistId, mediaId);
-            System.out.println("Media added.");
+        } catch (InvalidInputException | ResourceNotFoundException e) {
+            System.out.println("ERROR: " + e.getMessage());
         }
-
-        // удалить media
-        else if (choice.equals("2")) {
-
-            System.out.print("Enter media id to delete or type \"exit\": ");
-            String input = scanner.nextLine();
-
-            if (input.equalsIgnoreCase("exit")) {
-                System.out.println("Exit. No changes made.");
-                return;
-            }
-
-            int mediaId = Integer.parseInt(input);
-            playlistService.removeMedia(playlistId, mediaId);
-            System.out.println("Media removed.");
-        }
-
-        // обновленный плейлист
-        System.out.println();
-        System.out.println("UPDATED PLAYLIST:");
-        printPlaylistMedia(playlistService, playlistId);
     }
 
-    // вспомогательный метод для печати media плейлиста
+    // 
+
+    private static int parseIdOrThrow(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new InvalidInputException("Input cannot be empty.");
+        }
+
+        try {
+            return Integer.parseInt(input);
+        } catch (NumberFormatException e) {
+            throw new InvalidInputException(
+                    "Invalid input. Please enter a numeric id."
+            );
+        }
+    }
+
     private static void printPlaylistMedia(PlaylistService playlistService, int playlistId) {
 
         List<Media> mediaList = playlistService.getPlaylistMedia(playlistId);

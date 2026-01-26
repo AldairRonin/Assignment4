@@ -15,4 +15,9 @@ public class MediaService {
     public List<Media> getAllMedia() {
         return mediaRepository.getAll();
     }
+
+    // ✅ ВОТ ЭТО НУЖНО
+    public boolean mediaExists(int mediaId) {
+        return mediaRepository.existsById(mediaId);
+    }
 }
