@@ -35,6 +35,7 @@ public class Main {
             System.out.println("2 - delete media");
             System.out.println("3 - exit");
 
+            System.out.print("User choice: ");
             String choice = scanner.nextLine();
 
             // проверка выбора

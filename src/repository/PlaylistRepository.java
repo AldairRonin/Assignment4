@@ -12,6 +12,20 @@ import model.Song;
 import utils.DatabaseConnection;
 
 public class PlaylistRepository {
+    // создание нового плейлиста
+    public void createPlaylist(String name) {
+        String sql = "INSERT INTO playlist (name) VALUES (?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, name);
+            stmt.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to create playlist", e);
+        }
+    }
+
 
     // получение названия плейлиста по id
     public String getPlaylistNameById(int playlistId) {
